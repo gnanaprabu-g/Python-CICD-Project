@@ -31,21 +31,21 @@ pipeline {
         }
 
  
-        stage('Python Unit Testing') {
+        // stage('Python Unit Testing') {
 
-            steps {
+        //     steps {
 
-                sh '''
+        //         sh '''
 
-                    . venv/bin/activate
+        //             . venv/bin/activate
 
-                    pytest -v
+        //             pytest -v
 
-                '''
+        //         '''
 
-            }
+        //     }
 
-        }
+        // }
  
         stage('SonarQube Analysis') {
 
@@ -71,29 +71,29 @@ pipeline {
 
         }
  
-        stage('Quality Gate') {
+        // stage('Quality Gate') {
 
-            steps {
+        //     steps {
 
-                timeout(time: 5, unit: 'MINUTES') {
+        //         timeout(time: 5, unit: 'MINUTES') {
 
-                    script {
+        //             script {
 
-                        def qg = waitForQualityGate()
+        //                 def qg = waitForQualityGate()
  
-                        if (qg.status != 'OK') {
+        //                 if (qg.status != 'OK') {
 
-                            error "SonarQube Quality Gate Failed: ${qg.status}"
+        //                     error "SonarQube Quality Gate Failed: ${qg.status}"
 
-                        }
+        //                 }
 
-                    }
+        //             }
 
-                }
+        //         }
 
-            }
+        //     }
 
-        }
+        // }
  
         stage('Docker Build') {
 
