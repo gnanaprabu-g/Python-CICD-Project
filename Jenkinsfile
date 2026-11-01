@@ -156,12 +156,12 @@ pipeline {
         }
     }
 
-    post {
-        success {
-            echo "Deployed ${ECR_REPO}:${IMAGE_TAG} to EKS cluster ${EKS_CLUSTER}."
-        }
-        failure {
-            echo 'Pipeline failed. Trivy report (if the scan ran) is archived as trivy-report.json.'
-        }
-    }
+    // post {
+    //     success {
+    //         echo "Deployed ${ECR_REPO}:${IMAGE_TAG} to EKS cluster ${EKS_CLUSTER}."
+    //     }
+    //     failure {
+    //         echo 'Pipeline failed. Trivy report (if the scan ran) is archived as trivy-report.json.'
+    //     }
+    // }
 }
