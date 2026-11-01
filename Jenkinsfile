@@ -1,224 +1,101 @@
 pipeline {
- 
     agent any
- 
-    environment {
 
-        AWS_REGION = 'ap-south-1'
+    //  environment {
+    //     AWS_REGION = 'ap-south-1'
+    //     AWS_ACCOUNT_ID = 'YOUR_AWS_ACCOUNT_ID'
+    //     ECR_REPO = '978355780378.dkr.ecr.ap-south-1.amazonaws.com'
+    //     EKS_CLUSTER = 'python-eks-cluster'
+    //     FULL_IMAGE = 'python-app'
+    //}
 
-        EKS_CLUSTER = 'python-eks-cluster'
- 
-        DOCKER_IMAGE = 'YOUR_DOCKERHUB_USERNAME/python-app'
- 
-        K8S_NAMESPACE = 'python-app'
-
-        K8S_DEPLOYMENT = 'python-app'
-
-        K8S_CONTAINER = 'python-app'
-
-    }
- 
     stages {
- 
-        stage('Checkout') {
-
+        stage('Pull Code From GitHub') {
             steps {
-
-                checkout scm
-
+                git branch: 'main',
+                    url: 'https://github.com/gnanaprabu-g/Python-CICD-Project.git'
             }
-
         }
 
- 
-        // stage('Python Unit Testing') {
-
-        //     steps {
-
-        //         sh '''
-
-        //             . venv/bin/activate
-
-        //             pytest -v
-
-        //         '''
-
-        //     }
-
-        // }
- 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'sonar-scanner'
-                }
-            }
-        }
- 
-        // stage('Quality Gate') {
-
-        //     steps {
-
-        //         timeout(time: 5, unit: 'MINUTES') {
-
-        //             script {
-
-        //                 def qg = waitForQualityGate()
- 
-        //                 if (qg.status != 'OK') {
-
-        //                     error "SonarQube Quality Gate Failed: ${qg.status}"
-
-        //                 }
-
-        //             }
-
-        //         }
-
-        //     }
-
-        // }
- 
-        stage('Docker Build') {
-
-            steps {
-
                 script {
+                    def scannerHome = tool 'sonar-scanner'
 
-                    env.IMAGE_TAG = "${BUILD_NUMBER}"
-
-                    env.FULL_IMAGE =
-
-                        "${DOCKER_IMAGE}:${IMAGE_TAG}"
-
+                    withSonarQubeEnv('SonarQube') {
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=python-app \
+                            -Dsonar.sources=.
+                        """
+                    }
                 }
- 
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                script {
+                    env.IMAGE_NAME = "python-app:${BUILD_NUMBER}"
+                }
+
                 sh '''
-
-                    docker build -t $FULL_IMAGE .
-
+                    docker build -t "$IMAGE_NAME" .
                     docker images
-
                 '''
-
             }
-
         }
- 
-        stage('Docker Hub Push') {
 
+        stage('Trivy Image Scan') {
             steps {
+                sh 'trivy image ${IMAGE_NAME} > report.txt'
+            }
+        }
 
-                withCredentials([
-
-                    usernamePassword(
-
-                        credentialsId: 'docker-hub-credentials',
-
-                        usernameVariable: 'DOCKER_USER',
-
-                        passwordVariable: 'DOCKER_PASS'
-
-                    )
-
-                ]) {
-
-                    sh '''
-
-                        echo "$DOCKER_PASS" | docker login \
-
-                            -u "$DOCKER_USER" --password-stdin
- 
-                        docker push "$FULL_IMAGE"
- 
-                        docker logout
-
-                    '''
-
+        stage('ECR Push') {
+            steps {
+                script {
+                    env.ECR_IMAGE = "978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}"
                 }
-
-            }
-
-        }
- 
-        stage('Configure EKS') {
-
-            steps {
-
                 sh '''
-
+                    set -e
+                    echo "Checking AWS account"
                     aws sts get-caller-identity
- 
-                    aws eks update-kubeconfig \
-
-                        --region "$AWS_REGION" \
-
-                        --name "$EKS_CLUSTER"
- 
-                    kubectl get nodes
-
+                    echo "ECR Login"
+                    aws ecr get-login-password \
+                        --region ap-south-1 | \
+                    docker login \
+                        --username AWS \
+                        --password-stdin \
+                        978355780378.dkr.ecr.ap-south-1.amazonaws.com
+                    echo "Docker Tag"
+                    docker tag python-app:${BUILD_NUMBER} "$ECR_IMAGE"
+                    echo "Docker Push"
+                    docker push "$ECR_IMAGE"
                 '''
-
             }
-
         }
- 
+
         stage('Deploy to EKS') {
-
             steps {
-
                 sh '''
+                    aws eks update-kubeconfig --region ap-south-1 --name demo-cluster-1
+                    
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
 
-                    kubectl create namespace "$K8S_NAMESPACE" \
+                    ECR_IMAGE=978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}
 
-                        --dry-run=client -o yaml | kubectl apply -f -
- 
-                    sed "s|IMAGE_PLACEHOLDER|$FULL_IMAGE|g" \
+                    sed -i "s|_IMAGE_|$ECR_IMAGE|g" pod.yaml
 
-                        deployment.yaml | kubectl apply -f -
- 
-                    kubectl apply -f service.yaml
- 
-                    kubectl rollout status \
-
-                        deployment/"$K8S_DEPLOYMENT" \
-
-                        -n "$K8S_NAMESPACE" \
-
-                        --timeout=300s
-
+                    kubectl get nodes
+                    kubectl apply -f pod.yaml
+                    kubectl get pods
+                    kubectl get svc
                 '''
-
             }
-
         }
- 
-        stage('Verify Deployment') {
 
-            steps {
 
-                sh '''
-
-                    echo "Checking Kubernetes Deployment"
- 
-                    kubectl get deployments \
-
-                        -n "$K8S_NAMESPACE"
- 
-                    kubectl get pods \
-
-                        -n "$K8S_NAMESPACE" -o wide
- 
-                    kubectl get services \
-
-                        -n "$K8S_NAMESPACE"
-
-                '''
-
-            }
-
-        }
 
     }
-
 }
