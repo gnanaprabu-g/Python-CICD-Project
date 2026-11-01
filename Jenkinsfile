@@ -13,39 +13,39 @@ pipeline {
         K8S_CONTAINER = 'python-app'
     }
  
-    stages {
+    // stages {
  
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
+    //     stage('Checkout') {
+    //         steps {
+    //             checkout scm
+    //         }
+    //     }
  
-        stage('Install Python Dependencies') {
-            steps {
-                sh '''
-                    set -e
+    //     stage('Install Python Dependencies') {
+    //         steps {
+    //             sh '''
+    //                 set -e
         
-                    echo "Checking Python version"
-                    python3 --version
+    //                 echo "Checking Python version"
+    //                 python3 --version
         
-                    echo "Creating virtual environment"
-                    python3 -m venv venv
+    //                 echo "Creating virtual environment"
+    //                 python3 -m venv venv
         
-                    echo "Activating environment"
-                    . venv/bin/activate
+    //                 echo "Activating environment"
+    //                 . venv/bin/activate
         
-                    echo "Upgrading pip"
-                    python -m pip install --upgrade pip
+    //                 echo "Upgrading pip"
+    //                 python -m pip install --upgrade pip
         
-                    echo "Installing requirements"
-                    python -m pip install -r requirements.txt
+    //                 echo "Installing requirements"
+    //                 python -m pip install -r requirements.txt
         
-                    echo "Installed packages"
-                    python -m pip list
-                '''
-            }
-}
+    //                 echo "Installed packages"
+    //                 python -m pip list
+    //             '''
+    //         }
+    // }
  
         stage('Python Unit Testing') {
             steps {
