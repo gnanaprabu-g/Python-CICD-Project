@@ -80,7 +80,7 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 // Replace with your Jenkins AWS credential ID
-                withAWS(credentials: 'aws-creds', region: 'ap-south-1') {
+                withCredentials([aws(credentialsId: 'aws-creds', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         aws eks update-kubeconfig --region ap-south-1 --name demo-cluster-1
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
