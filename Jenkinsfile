@@ -54,25 +54,27 @@ pipeline {
 
         stage('ECR Push') {
             steps {
-                script {
-                    env.ECR_IMAGE = "978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}"
+                withCredentials([aws(credentialsId: 'aws-creds-2', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    script {
+                        env.ECR_IMAGE = "978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}"
+                    }
+                    sh '''
+                        set -e
+                        echo "Checking AWS account"
+                        aws sts get-caller-identity
+                        echo "ECR Login"
+                        aws ecr get-login-password \
+                            --region ap-south-1 | \
+                        docker login \
+                            --username AWS \
+                            --password-stdin \
+                            978355780378.dkr.ecr.ap-south-1.amazonaws.com
+                        echo "Docker Tag"
+                        docker tag python-app:${BUILD_NUMBER} "$ECR_IMAGE"
+                        echo "Docker Push"
+                        docker push "$ECR_IMAGE"
+                    '''
                 }
-                sh '''
-                    set -e
-                    echo "Checking AWS account"
-                    aws sts get-caller-identity
-                    echo "ECR Login"
-                    aws ecr get-login-password \
-                        --region ap-south-1 | \
-                    docker login \
-                        --username AWS \
-                        --password-stdin \
-                        978355780378.dkr.ecr.ap-south-1.amazonaws.com
-                    echo "Docker Tag"
-                    docker tag python-app:${BUILD_NUMBER} "$ECR_IMAGE"
-                    echo "Docker Push"
-                    docker push "$ECR_IMAGE"
-                '''
             }
         }
 
@@ -80,7 +82,7 @@ pipeline {
         stage('Deploy to EKS') {
             steps {
                 // Replace with your Jenkins AWS credential ID
-                withCredentials([aws(credentialsId: 'aws-creds', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([aws(credentialsId: 'aws-creds-2', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         aws eks update-kubeconfig --region ap-south-1 --name demo-cluster-1
                         export KUBECONFIG=/var/lib/jenkins/.kube/config
