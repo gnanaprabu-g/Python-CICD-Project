@@ -76,25 +76,24 @@ pipeline {
             }
         }
 
+
         stage('Deploy to EKS') {
             steps {
-                sh '''
-                    aws eks update-kubeconfig --region ap-south-1 --name demo-cluster-1
-                    
-                    export KUBECONFIG=/var/lib/jenkins/.kube/config
-
-                    ECR_IMAGE=978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}
-
-                    sed -i "s|_IMAGE_|$ECR_IMAGE|g" pod.yaml
-
-                    kubectl get nodes
-                    kubectl apply -f pod.yaml
-                    kubectl get pods
-                    kubectl get svc
-                '''
+                // Replace with your Jenkins AWS credential ID
+                withAWS(credentials: 'aws-creds', region: 'ap-south-1') {
+                    sh '''
+                        aws eks update-kubeconfig --region ap-south-1 --name demo-cluster-1
+                        export KUBECONFIG=/var/lib/jenkins/.kube/config
+                        ECR_IMAGE=978355780378.dkr.ecr.ap-south-1.amazonaws.com/python-app:${BUILD_NUMBER}
+                        sed -i "s|_IMAGE_|$ECR_IMAGE|g" pod.yaml
+                        kubectl get nodes
+                        kubectl apply -f pod.yaml
+                        kubectl get pods
+                        kubectl get svc
+                    '''
+                }
             }
         }
-
 
 
     }
